@@ -1,5 +1,5 @@
-import tkinter as tk
-from tkinter import Canvas
+import pyglet
+import pyglet.gl as gl
 import time
 from algorithm import *
 
@@ -8,65 +8,56 @@ WIDTH = 1500
 HEIGHT = 1040
 
 
-# DRAWING
+class SimulationWindow(pyglet.window.Window):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
+        self.batch = pyglet.graphics.Batch()
+        self.path = generate_circle(200, 100)
+        centered_path = self.path + np.array([WIDTH / 2, HEIGHT / 2])
+        self.vertex_list = self.batch.add(self.path.shape[0], gl.GL_LINE_LOOP, None,
+                                          ('v2f', list(centered_path.flatten())),
+                                          ('c4f', (1, 1, 1, 0.01) * self.path.shape[0]))
+        self.fps_display = pyglet.window.FPSDisplay(window=self)
+        self.fps_display.label.color = (255, 255, 255, 255)
 
-def create_center_line(canvas, point1, point2):
-    canvas.create_line(point1[0] + WIDTH / 2, point1[1] + HEIGHT / 2, point2[0] + WIDTH / 2, point2[1] + HEIGHT / 2,
-                       fill='white', smooth=1, splinesteps=5)
+        gl.glLineWidth(1)
+        #gl.glClearColor(0.0, 0.0, 0.1, 0.9)
+        gl.glEnable(gl.GL_BLEND)
+        gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
+        self.playing = True #TODO: to use for play/pause interaction
 
-def draw_path(canvas, path):
-    centered_path_plus_one = np.vstack([path, path[0]]) + np.array([WIDTH / 2, HEIGHT / 2])
-    canvas.create_line(*(centered_path_plus_one.flatten()),
-                       fill='white', smooth=1, splinesteps=0)
-    # for i in range(path.shape[0]):
-    #     create_center_line(canvas, path[i], path[(i + 1) % len(path)])
-    #     canvas.create_oval(path[i][0] - 3 + WIDTH / 2, path[i][1] - 3 + HEIGHT / 2,
-    #                        path[i][0] + 3 + WIDTH / 2, path[i][1] + 3 + HEIGHT / 2,
-    #                        fill='red')
+        pyglet.clock.schedule_interval(self.update, 1 / 120.0)
+        self.clear()
 
+    def update(self, dt):
+        #TODO: use dt !
+        self.path = differential_growth(self.path,
+                                        attraction_strength=0.2, repulsion_strength=0.016, repulsion_radius=30.0,
+                                        brownian_strength=0.05, align_strength=0.01, split_distance=10.0, merge_distance=5.0)
+        centered_path = self.path + np.array([WIDTH / 2, HEIGHT / 2])
+        self.vertex_list.resize(self.path.shape[0])
+        self.vertex_list.vertices = list(centered_path.flatten())
+        self.vertex_list.colors = (1, 1, 1, 0.005) * self.path.shape[0]
+        print("Nodes: ", self.path.shape[0])
 
-# INTERACTIONS
+    def on_draw(self):
+        #self.clear()
+        self.fps_display.draw()
+        self.batch.draw()
 
-
-playing = True
-
-
-def toggle_play(*args):
-    global playing
-    playing = not playing
-
-
-# MAIN
+    def on_close(self):
+        self.close()
 
 
 def main():
-    global playing
-
-    app = tk.Tk()
-    app.title("Canvas")
-    app.bind("<space>", toggle_play)
-
-    canvas = Canvas(app, width=WIDTH, height=HEIGHT)
-    canvas.configure(bg='black')
-    canvas.pack()
-
-    path = generate_circle(200, 3)
-
-    while True:
-        if playing:
-            draw_path(canvas, path)
-
-        app.update_idletasks()
-        app.update()
-
-        if playing:
-            path = differential_growth(path, attraction_strength=0.05, repulsion_strength=0.01, repulsion_radius=5.0,
-                                       brownian_strength=0.0, align_strength=0, split_distance=2.0, merge_distance=1.0)
-            time.sleep(1/120)
-            canvas.delete("all")
-            print("Nodes: ", path.shape[0])
+    config = pyglet.gl.Config(sample_buffers=1, sample=4)
+    window = SimulationWindow(width=WIDTH, height=HEIGHT, config=config)
+    try:
+        pyglet.app.run()
+    except Exception as e:
+        print("Exception caught: ", e)
 
 
 if __name__ == '__main__':

@@ -18,10 +18,14 @@ def attract_to_connected(path):
 def repulse_from_neighbours(path, radius=10.0):
     kdtree = KDTree(path, balanced_tree=False)
     neighbours_idxs = kdtree.query_ball_tree(kdtree, radius)
+    # Variable list of list to numpy matrix
     neighbours_idxs = np.array(list(itertools.zip_longest(*neighbours_idxs, fillvalue=-1))).T
+    # Pad the last row with a default value so fillvalues index there
     path_padded = np.vstack([path, np.array([0.0, 0.0])])
     all_neigbours = path_padded[neighbours_idxs]
+    # Broadcast for substraction
     broadcasted_path = np.broadcast_to(np.expand_dims(path, axis=1), all_neigbours.shape)
+    # Replace default values by the point so substraction gives [0, 0]
     all_neigbours_zero_is_self = np.where(all_neigbours != [0, 0], all_neigbours, broadcasted_path)
     vectors = broadcasted_path - all_neigbours_zero_is_self
     repulse_forces = np.sum(vectors, axis=1)
