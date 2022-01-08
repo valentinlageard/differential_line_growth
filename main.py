@@ -24,15 +24,14 @@ class SimulationWindow(pyglet.window.Window):
 
         self.fps_display = pyglet.window.FPSDisplay(window=self)
         self.fps_display.label.color = (255, 255, 255, 255)
-        self.debug_label = pyglet.text.Label("\n".join(str(self.dlgconf).split(', ')),
-                                             x=0, y=self.height - 15, width=400, height=400, multiline=True)
+        self.debug_label = pyglet.text.Label(x=0, y=self.height - 15, width=400, height=400, multiline=True)
 
         gl.glLineWidth(1)
         gl.glClearColor(0.0, 0.0, 0.0, 0.0)
         gl.glEnable(gl.GL_BLEND)
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
-        self.playing = True
+        self.playing = False
         self.tracing = False
 
         pyglet.clock.schedule_interval(self.update, 1 / 120.0)
@@ -44,7 +43,7 @@ class SimulationWindow(pyglet.window.Window):
         if self.playing:
             self.path = differential_line_growth(self.path, self.dlgconf)
             self._update_vertex_list()
-            self.debug_label.text = "\n".join(str(self.dlgconf).split(', '))
+            self._update_debug_label()
 
     def on_draw(self):
         if self.playing:
@@ -80,6 +79,9 @@ class SimulationWindow(pyglet.window.Window):
         self.vertex_list.vertices = list(centered_path.flatten())
         color = (1, 1, 1, max(0.001, 0.01 * self.dlgconf.scale)) if self.tracing else (1, 1, 1, 1)
         self.vertex_list.colors = color * self.path.shape[0]
+
+    def _update_debug_label(self):
+        self.debug_label.text = "Nodes: {}\n".format(self.path.shape[0]) + self.dlgconf.get_multiline_str()
 
 
 def main():

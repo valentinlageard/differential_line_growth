@@ -1,7 +1,7 @@
 import itertools
 import numpy as np
 from scipy.spatial import KDTree, minkowski_distance
-from dataclasses import dataclass
+from dataclasses import dataclass, astuple, fields
 
 
 @dataclass
@@ -16,6 +16,19 @@ class DLGConf:
     max_distance: float = 0.0
     scale: float = 0.0
     dt: float = 0.0
+
+    def keys(self):
+        return iter(field.name for field in fields(self))
+
+    def values(self):
+        return iter(astuple(self))
+
+    def items(self):
+        return iter((field.name, getattr(self, field.name)) for field in fields(self))
+
+    def get_multiline_str(self):
+        format_str = "{}: {:.2f}"
+        return "\n".join(format_str.format(param, value) for param, value in self.items())
 
 
 def generate_circle(radius=1, n_points=100):
