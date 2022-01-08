@@ -2,6 +2,7 @@ import itertools
 import numpy as np
 from scipy.spatial import KDTree, minkowski_distance
 
+
 def generate_circle(radius=1, n_points=100):
     linspace = np.linspace(-np.pi, np.pi, n_points + 1)
     circle = np.stack((np.sin(linspace) * radius, np.cos(linspace) * radius), 1)[:-1]
