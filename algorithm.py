@@ -1,6 +1,21 @@
 import itertools
 import numpy as np
 from scipy.spatial import KDTree, minkowski_distance
+from dataclasses import dataclass
+
+
+@dataclass
+class DLGConf:
+    growth: float = 0.0
+    attraction: float = 0.0
+    repulsion: float = 0.0
+    alignement: float = 0.0
+    perturbation: float = 0.0
+    repulsion_radius: float = 0.0
+    min_distance: float = 0.0
+    max_distance: float = 0.0
+    scale: float = 0.0
+    dt: float = 0.0
 
 
 def generate_circle(radius=1, n_points=100):
@@ -43,18 +58,18 @@ def brownian_perturbate(path):
     return np.random.randn(*path.shape)
 
 
-def split_merge(path, split_distance=10.0, merge_distance=1.0):
+def constrain_distance(path, min_distance=1.0, max_distance=10.0):
     distances = minkowski_distance(path, np.roll(path, -1, axis=0), p=2)
-    n_new_points = distances[distances > split_distance].shape[0]
-    n_removed_points = distances[distances < merge_distance].shape[0]
+    n_new_points = distances[distances > max_distance].shape[0]
+    n_removed_points = distances[distances < min_distance].shape[0]
     new_path = np.zeros((path.shape[0] + n_new_points - n_removed_points, 2))
     counter = 0
     for i, (point, distance_to_next) in enumerate(zip(path, distances)):
-        if distance_to_next > merge_distance:
+        if distance_to_next > min_distance:
             new_path[i + counter] = point
         else:
             counter -= 1
-        if distance_to_next > split_distance:
+        if distance_to_next > max_distance:
             counter += 1
             new_point = (point + path[(i + 1) % path.shape[0]]) / 2.0
             new_path[i + counter] = new_point
@@ -69,13 +84,24 @@ def random_grow(path, new_points_per_frame=1):
     return np.insert(path, insertion_indexes, midpoints, axis=0)
 
 
-def differential_growth(path, attraction_strength=0.1, repulsion_strength=0.1, repulsion_radius=10.0,
-                        brownian_strength=1.0, align_strength=0.1, split_distance=10.0, merge_distance=1.0):
-    attract_forces = attract_to_connected(path) * attraction_strength
-    repulse_forces = repulse_from_neighbours(path, repulsion_radius) * repulsion_strength
-    brownian_forces = brownian_perturbate(path) * brownian_strength
-    align_forces = align_to_connected(path) * align_strength
-    new_path = split_merge(path + attract_forces + repulse_forces + brownian_forces + align_forces,
-                           split_distance, merge_distance)
-    new_path = random_grow(new_path)
+def sin_grow(path, phases=1.0, offset=0.0, max_p=0.05):
+    space = np.linspace(0 + offset, phases * np.pi * 2.0 + offset, path.shape[0], endpoint=False)
+    sin_distribution = (np.sin(space) + 1.0) / 2.0 * max_p
+    random_variables = np.random.random(path.shape[0])
+    insertion_indexes = np.where(random_variables < sin_distribution, True, False).nonzero()[0]
+    points = path[insertion_indexes]
+    next_points = np.roll(path, -1, axis=0)[insertion_indexes]
+    midpoints = (points + next_points) / 2.0
+    return np.insert(path, insertion_indexes, midpoints, axis=0)
+
+
+def differential_line_growth(path, conf: DLGConf):
+    grown_path = sin_grow(path, phases=3.0, max_p=conf.growth)
+    attract_forces = attract_to_connected(grown_path) * conf.attraction * conf.scale * conf.dt
+    repulse_forces = repulse_from_neighbours(grown_path, conf.repulsion_radius * conf.scale)\
+                     * conf.repulsion * conf.scale * conf.dt
+    align_forces = align_to_connected(grown_path) * conf.alignement * conf.scale * conf.dt
+    brownian_forces = brownian_perturbate(grown_path) * conf.perturbation * conf.scale * conf.dt
+    path_with_forces = grown_path + attract_forces + repulse_forces + brownian_forces + align_forces
+    new_path = constrain_distance(path_with_forces, conf.min_distance * conf.scale, conf.max_distance * conf.scale)
     return new_path

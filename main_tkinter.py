@@ -57,8 +57,8 @@ def main():
         app.update()
 
         if playing:
-            path = differential_growth(path, attraction_strength=0.05, repulsion_strength=0.01, repulsion_radius=5.0,
-                                       brownian_strength=0.0, align_strength=0, split_distance=2.0, merge_distance=1.0)
+            path = differential_line_growth(path, attraction_strength=0.05, repulsion_strength=0.01, repulsion_radius=5.0,
+                                            brownian_strength=0.0, align_strength=0, split_distance=2.0, merge_distance=1.0)
             time.sleep(1/120)
             canvas.delete("all")
             print("Nodes: ", path.shape[0])
