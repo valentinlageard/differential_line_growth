@@ -3,20 +3,25 @@ import pyglet.gl as gl
 import pyglet.window.key as key
 from algorithm import *
 from path import Path
+from pyglet.graphics import vertex_list
 
 
 class SimulationWindow(pyglet.window.Window):
     def __init__(self, dlgconf: DLGConf, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # Simulation
         self.dlgconf = dlgconf
-        self.path = Path(radius=100, n_points=100)
+        self.path = Path(radius=100, n_points=50)
 
-        self.batch = pyglet.graphics.Batch()
+        # Rendering
         centered_path = self.path.get_centered_points(self.width, self.height)
-        self.vertex_list = self.batch.add(len(self.path), gl.GL_LINE_LOOP, None,
-                                          ('v2f', list(centered_path.flatten())),
-                                          ('c4f', (1, 1, 1, 0.01) * len(self.path)))
+        self.vertex_list = vertex_list(len(self.path),
+                                       ('v2f', list(centered_path.flatten())),
+                                       ('c4f', (1, 1, 1, 0.01) * len(self.path)))
+        self.vertex_list_points = vertex_list(len(self.path),
+                                              ('v2f', list(centered_path.flatten())),
+                                              ('c4f', (0, 1, 0, 1) * len(self.path)))
 
         self.fps_display = pyglet.window.FPSDisplay(window=self)
         self.fps_display.label.color = (255, 255, 255, 255)
@@ -30,14 +35,15 @@ class SimulationWindow(pyglet.window.Window):
         self.playing = True
         self.tracing = False
         self.debug_info = False
-        self.debug_color = True
+        self.debug_color = False
+        self.node_drawing = False
 
         pyglet.clock.schedule_interval(self.update, 1 / 240.0)
         self.clear()
 
     def update(self, dt):
         # Avoid the simulation exploding at slow frames by limiting dt
-        self.dlgconf.dt = min(dt, 1/100)
+        self.dlgconf.dt = min(dt, 1 / 100)
         if self.playing:
             self.path.update(self.dlgconf)
             self._update_vertex_list()
@@ -49,7 +55,10 @@ class SimulationWindow(pyglet.window.Window):
         if self.debug_info and not self.tracing:
             self.fps_display.draw()
             self.debug_label.draw()
-        self.batch.draw()
+        if self.node_drawing:
+            self.vertex_list.draw(gl.GL_POINTS)
+        else:
+            self.vertex_list.draw(gl.GL_LINE_LOOP)
 
     def on_close(self):
         exit()
@@ -67,18 +76,20 @@ class SimulationWindow(pyglet.window.Window):
             self.debug_info = not self.debug_info
         if symbol == key.O:
             self.debug_color = not self.debug_color
+        if symbol == key.P:
+            self.node_drawing = not self.node_drawing
         if symbol == key.UP:
             self.dlgconf.scale = min(self.dlgconf.scale + 0.05, 1.5)
         if symbol == key.DOWN:
             self.dlgconf.scale = max(self.dlgconf.scale - 0.05, 0.05)
         if symbol == key.Q:
-            self.dlgconf.growth = min(self.dlgconf.growth + 0.01, 1.0)
+            self.dlgconf.growth = min(self.dlgconf.growth + 0.001, 1.0)
         if symbol == key.W:
-            self.dlgconf.growth = max(self.dlgconf.growth - 0.01, 0.0)
+            self.dlgconf.growth = max(self.dlgconf.growth - 0.001, 0.0)
         if symbol == key.S:
-            self.dlgconf.repulsion = min(self.dlgconf.repulsion + 0.1, 10.0)
+            self.dlgconf.repulsion = min(self.dlgconf.repulsion + 0.5, 100.0)
         if symbol == key.X:
-            self.dlgconf.repulsion = max(self.dlgconf.repulsion - 0.1, 0.1)
+            self.dlgconf.repulsion = max(self.dlgconf.repulsion - 0.5, 0.1)
 
     def _update_vertex_list(self):
         centered_path = self.path.get_centered_points(self.width, self.height)
@@ -87,25 +98,30 @@ class SimulationWindow(pyglet.window.Window):
         if self.debug_color:
             ones = np.full(len(self.path), 1.0)
             inverscaled_distribution = 1 - (self.path.growth_distribution / self.dlgconf.growth)
-            colors = np.ravel(np.column_stack((ones, inverscaled_distribution, inverscaled_distribution, ones)))
+            alphas = ones / 100 * self.dlgconf.scale if self.tracing else ones
+            colors = np.ravel(np.column_stack((ones, inverscaled_distribution, inverscaled_distribution, alphas)))
             self.vertex_list.colors = colors
         else:
-            color = (1, 1, 1, max(0.001, 0.01 * self.dlgconf.scale)) if self.tracing else (1, 1, 1, 1)
+            color = (1, 1, 1, max(0.001, 0.05 * self.dlgconf.scale)) if self.tracing else (1, 1, 1, 1)
             self.vertex_list.colors = color * len(self.path)
+        if self.node_drawing:
+            self.vertex_list_points.resize(len(self.path))
+            self.vertex_list_points.vertices = list(centered_path.flatten())
+            self.vertex_list_points.colors = (0, 1, 0, 1) * len(self.path)
 
     def _update_debug_label(self):
         self.debug_label.text = "Nodes: {}\n".format(len(self.path)) + self.dlgconf.get_multiline_str()
 
 
 def main():
-    simulation_conf = DLGConf(growth=0.005,
+    simulation_conf = DLGConf(growth=0.03,
                               attraction=15.0,
-                              repulsion=1.5,
-                              alignement=0.0,
-                              perturbation=5.0,
-                              repulsion_radius=10.0,
+                              repulsion=50.0,
+                              alignement=20.0,
+                              perturbation=10.0,
+                              repulsion_radius=40.0,
                               min_distance=2.0,
-                              max_distance=20.0,
+                              max_distance=40.0,
                               scale=1.0)
     window_conf = pyglet.gl.Config(sample_buffers=1, sample=4)
     window = SimulationWindow(dlgconf=simulation_conf, fullscreen=True, config=window_conf)

@@ -38,7 +38,7 @@ def attract_to_connected(points):
     return attract_forces
 
 
-def repulse_from_neighbours(points, radius=10.0):
+def repulse_from_neighbours(points, force=1.0, radius=10.0):
     kdtree = KDTree(points, balanced_tree=False)
     neighbours_idxs = kdtree.query_ball_tree(kdtree, radius)
     # Variable list of list to numpy matrix
@@ -51,7 +51,11 @@ def repulse_from_neighbours(points, radius=10.0):
     # Replace default values by the point so substraction gives [0, 0]
     all_neigbours_zero_is_self = np.where(all_neigbours != [0, 0], all_neigbours, broadcasted_path)
     vectors = broadcasted_path - all_neigbours_zero_is_self
-    repulse_forces = np.sum(vectors, axis=1)
+    distances_squared = np.linalg.norm(vectors, axis=2, keepdims=True) ** 2
+    distances_squared[distances_squared < 1.0] = 1.0
+    vectors = vectors / distances_squared
+    vectors[np.isnan(vectors)] = 0.0
+    repulse_forces = np.sum(vectors, axis=1) * force
     return repulse_forces
 
 
