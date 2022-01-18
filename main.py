@@ -12,7 +12,7 @@ class SimulationWindow(pyglet.window.Window):
 
         # Simulation
         self.dlgconf = dlgconf
-        self.path = Path(radius=100, n_points=50)
+        self.path = Path(radius=150, n_points=50)
 
         # Rendering
         centered_path = self.path.get_centered_points(self.width, self.height)
@@ -79,9 +79,9 @@ class SimulationWindow(pyglet.window.Window):
         if symbol == key.P:
             self.node_drawing = not self.node_drawing
         if symbol == key.UP:
-            self.dlgconf.scale = min(self.dlgconf.scale + 0.05, 1.5)
+            self.dlgconf.scale = min(self.dlgconf.scale * 1.1, 50.0)
         if symbol == key.DOWN:
-            self.dlgconf.scale = max(self.dlgconf.scale - 0.05, 0.05)
+            self.dlgconf.scale = max(self.dlgconf.scale / 1.1, 0.01)
         if symbol == key.Q:
             self.dlgconf.growth = min(self.dlgconf.growth + 0.001, 1.0)
         if symbol == key.W:
@@ -114,14 +114,13 @@ class SimulationWindow(pyglet.window.Window):
 
 
 def main():
-    simulation_conf = DLGConf(growth=0.03,
-                              attraction=15.0,
-                              repulsion=50.0,
-                              alignement=20.0,
-                              perturbation=10.0,
-                              repulsion_radius=40.0,
-                              min_distance=2.0,
-                              max_distance=40.0,
+    simulation_conf = DLGConf(growth=0.01,
+                              attraction=5.0,
+                              repulsion=40.0,
+                              alignement=5.0,
+                              perturbation=0.0,
+                              min_distance=1.0,
+                              max_distance=50.0,
                               scale=1.0)
     window_conf = pyglet.gl.Config(sample_buffers=1, sample=4)
     window = SimulationWindow(dlgconf=simulation_conf, fullscreen=True, config=window_conf)

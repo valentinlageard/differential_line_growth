@@ -1,7 +1,6 @@
-import itertools
 import numpy as np
-from scipy.spatial import KDTree, minkowski_distance
-from dataclasses import dataclass, astuple, fields
+from sklearn.neighbors import NearestNeighbors
+from dataclasses import dataclass, fields
 
 
 @dataclass
@@ -11,7 +10,6 @@ class DLGConf:
     repulsion: float = 0.0
     alignement: float = 0.0
     perturbation: float = 0.0
-    repulsion_radius: float = 0.0
     min_distance: float = 0.0
     max_distance: float = 0.0
     scale: float = 0.0
@@ -37,25 +35,17 @@ def attract_to_connected(points):
     attract_forces = (previous_points - points) + (next_points - points)
     return attract_forces
 
-
-def repulse_from_neighbours(points, force=1.0, radius=10.0):
-    kdtree = KDTree(points, balanced_tree=False)
-    neighbours_idxs = kdtree.query_ball_tree(kdtree, radius)
-    # Variable list of list to numpy matrix
-    neighbours_idxs = np.array(list(itertools.zip_longest(*neighbours_idxs, fillvalue=-1))).T
-    # Pad the last row with a default value so fillvalues index there
-    path_padded = np.vstack([points, np.array([0.0, 0.0])])
-    all_neigbours = path_padded[neighbours_idxs]
-    # Broadcast for substraction
+def repulse_from_neighbours(points, n_neighbours=100):
+    nearest_neighbors_learner = NearestNeighbors(n_neighbors=n_neighbours)
+    nearest_neighbors_learner.fit(points)
+    distances, neighbours_idxs = nearest_neighbors_learner.kneighbors(n_neighbors=20)
+    all_neigbours = points[neighbours_idxs]
     broadcasted_path = np.broadcast_to(np.expand_dims(points, axis=1), all_neigbours.shape)
-    # Replace default values by the point so substraction gives [0, 0]
-    all_neigbours_zero_is_self = np.where(all_neigbours != [0, 0], all_neigbours, broadcasted_path)
-    vectors = broadcasted_path - all_neigbours_zero_is_self
-    distances_squared = np.linalg.norm(vectors, axis=2, keepdims=True) ** 2
-    distances_squared[distances_squared < 1.0] = 1.0
-    vectors = vectors / distances_squared
-    vectors[np.isnan(vectors)] = 0.0
-    repulse_forces = np.sum(vectors, axis=1) * force
+    vectors = broadcasted_path - all_neigbours
+    distances_squared = distances ** 2
+    distances_squared[distances_squared < 1.0] = 1.0  # Needed to limit jumping point glitch when points are too close
+    vectors = vectors / np.broadcast_to(np.expand_dims(distances_squared, axis=2), vectors.shape)
+    repulse_forces = np.sum(vectors, axis=1)
     return repulse_forces
 
 
