@@ -2,6 +2,27 @@ import numpy as np
 from algorithm import *
 import pyglet.gl as gl
 from scipy.spatial import minkowski_distance
+from dataclasses import dataclass, fields
+
+
+@dataclass
+class DLGConf:
+    growth: float = 0.0
+    attraction: float = 0.0
+    repulsion: float = 0.0
+    alignement: float = 0.0
+    perturbation: float = 0.0
+    min_distance: float = 0.0
+    max_distance: float = 0.0
+    scale: float = 0.0
+    dt: float = 0.0
+
+    def items(self):
+        return iter((field.name, getattr(self, field.name)) for field in fields(self))
+
+    def get_multiline_str(self):
+        format_str = "{}: {:.2f}"
+        return "\n".join(format_str.format(param, value) for param, value in self.items())
 
 
 class Path:
@@ -22,20 +43,20 @@ class Path:
         self.points += all_forces
         self.merge_close_points(conf.min_distance * conf.scale)
         self.split_long_edges(conf.max_distance * conf.scale)
-        #self.growth_distribution = sin_distribution(self, phases=3.0, p=conf.growth)
-        self.growth_distribution = np.random.random(self.points.shape[0]) * conf.growth
+        #self.growth_distribution = sin_distribution(self, phases=3.0) * conf.growth
+        #self.growth_distribution = np.random.random(self.points.shape[0]) * conf.growth
+        self.growth_distribution = curve_distribution(self) * conf.growth
 
     def grow(self):
         random_variables = np.random.random(len(self.points))
         insertion_indexes = np.where(random_variables < self.growth_distribution, True, False).nonzero()[0]
         points = self.points[insertion_indexes]
-        next_points = np.roll(self.points, -1, axis=0)[insertion_indexes]
+        next_points = np.roll(self.points, 1, axis=0)[insertion_indexes]
         midpoints = (points + next_points) / 2.0
         self.points = np.insert(self.points, insertion_indexes, midpoints, axis=0)
 
     def merge_close_points(self, min_distance=1.0):
         distances = minkowski_distance(self.points, np.roll(self.points, -1, axis=0), p=2)
-        # n_removed_points = distances[distances < min_distance and np.roll(distances, -1) < min_distance]
         removed_idxs = np.where(distances + np.roll(distances, 1) < min_distance * 2)
         merged_points = np.delete(self.points, removed_idxs, axis=0)
         self.points = merged_points

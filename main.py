@@ -2,7 +2,7 @@ import pyglet
 import pyglet.gl as gl
 import pyglet.window.key as key
 from algorithm import *
-from path import Path
+from path import Path, DLGConf
 from pyglet.graphics import vertex_list
 
 
@@ -79,7 +79,7 @@ class SimulationWindow(pyglet.window.Window):
         if symbol == key.P:
             self.node_drawing = not self.node_drawing
         if symbol == key.UP:
-            self.dlgconf.scale = min(self.dlgconf.scale * 1.1, 50.0)
+            self.dlgconf.scale = min(self.dlgconf.scale * 1.1, 20.0)
         if symbol == key.DOWN:
             self.dlgconf.scale = max(self.dlgconf.scale / 1.1, 0.01)
         if symbol == key.Q:
@@ -87,9 +87,9 @@ class SimulationWindow(pyglet.window.Window):
         if symbol == key.W:
             self.dlgconf.growth = max(self.dlgconf.growth - 0.001, 0.0)
         if symbol == key.S:
-            self.dlgconf.repulsion = min(self.dlgconf.repulsion + 0.5, 100.0)
+            self.dlgconf.repulsion = min(self.dlgconf.repulsion + 1.0, 100.0)
         if symbol == key.X:
-            self.dlgconf.repulsion = max(self.dlgconf.repulsion - 0.5, 0.1)
+            self.dlgconf.repulsion = max(self.dlgconf.repulsion - 1.0, 1.0)
 
     def _update_vertex_list(self):
         centered_path = self.path.get_centered_points(self.width, self.height)
@@ -102,7 +102,7 @@ class SimulationWindow(pyglet.window.Window):
             colors = np.ravel(np.column_stack((ones, inverscaled_distribution, inverscaled_distribution, alphas)))
             self.vertex_list.colors = colors
         else:
-            color = (1, 1, 1, max(0.001, 0.05 * self.dlgconf.scale)) if self.tracing else (1, 1, 1, 1)
+            color = (1, 1, 1, max(0.001, 0.05)) if self.tracing else (1, 1, 1, 1)
             self.vertex_list.colors = color * len(self.path)
         if self.node_drawing:
             self.vertex_list_points.resize(len(self.path))
@@ -114,11 +114,11 @@ class SimulationWindow(pyglet.window.Window):
 
 
 def main():
-    simulation_conf = DLGConf(growth=0.01,
+    simulation_conf = DLGConf(growth=0.005,
                               attraction=5.0,
                               repulsion=40.0,
                               alignement=5.0,
-                              perturbation=0.0,
+                              perturbation=5.0,
                               min_distance=1.0,
                               max_distance=50.0,
                               scale=1.0)

@@ -1,26 +1,5 @@
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
-from dataclasses import dataclass, fields
-
-
-@dataclass
-class DLGConf:
-    growth: float = 0.0
-    attraction: float = 0.0
-    repulsion: float = 0.0
-    alignement: float = 0.0
-    perturbation: float = 0.0
-    min_distance: float = 0.0
-    max_distance: float = 0.0
-    scale: float = 0.0
-    dt: float = 0.0
-
-    def items(self):
-        return iter((field.name, getattr(self, field.name)) for field in fields(self))
-
-    def get_multiline_str(self):
-        format_str = "{}: {:.2f}"
-        return "\n".join(format_str.format(param, value) for param, value in self.items())
 
 
 def generate_circle(radius=1, n_points=100):
@@ -35,10 +14,11 @@ def attract_to_connected(points):
     attract_forces = (previous_points - points) + (next_points - points)
     return attract_forces
 
-def repulse_from_neighbours(points, n_neighbours=100):
+
+def repulse_from_neighbours(points, n_neighbours=20):
     nearest_neighbors_learner = NearestNeighbors(n_neighbors=n_neighbours)
     nearest_neighbors_learner.fit(points)
-    distances, neighbours_idxs = nearest_neighbors_learner.kneighbors(n_neighbors=20)
+    distances, neighbours_idxs = nearest_neighbors_learner.kneighbors(n_neighbors=n_neighbours)
     all_neigbours = points[neighbours_idxs]
     broadcasted_path = np.broadcast_to(np.expand_dims(points, axis=1), all_neigbours.shape)
     vectors = broadcasted_path - all_neigbours
@@ -56,9 +36,31 @@ def align(points):
 
 
 def brownian_perturbate(points):
+    """
+    :param points: An array of points.
+    :return: An array of random forces.
+    """
     return np.random.randn(*points.shape)
 
 
-def sin_distribution(path, phases=1.0, offset=0.0, p=0.05):
+def sin_distribution(path, phases=1.0, offset=0.0):
+    """
+    :param path: A path object.
+    :param phases: The number of phases of sin.
+    :param offset: The offset of sin.
+    :return: An array containing a sinusoidal distribution.
+    """
     space = np.linspace(0 + offset, phases * np.pi * 2.0 + offset, len(path.points), endpoint=False)
-    return (np.sin(space) + 1.0) / 2.0 * p
+    return (np.sin(space) + 1.0) / 2.0
+
+
+def curve_distribution(path, offset=2, factor=1):
+    """
+    :param path: A path object.
+    :param offset: The number of edges around a point used to compute angles.
+    :return: An array containing a distribution based on curvature.
+    """
+    edges = np.roll(path.points, -1, axis=0) - path.points
+    angles = np.sum(edges * np.roll(edges, -offset * 2 + 1, axis=0), axis=1)
+    scaled_angles = np.interp(angles, (angles.min(), angles.max()), (0.0, 1.0))
+    return np.roll(1.0 - scaled_angles, offset + 1, axis=0) ** factor
