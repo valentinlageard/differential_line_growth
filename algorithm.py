@@ -54,7 +54,7 @@ def sin_distribution(path, phases=1.0, offset=0.0):
     return (np.sin(space) + 1.0) / 2.0
 
 
-def curve_distribution(path, offset=2, factor=1):
+def curve_distribution(path, offset=5, factor=2):
     """
     :param path: A path object.
     :param offset: The number of edges around a point used to compute angles.

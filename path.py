@@ -21,7 +21,7 @@ class DLGConf:
         return iter((field.name, getattr(self, field.name)) for field in fields(self))
 
     def get_multiline_str(self):
-        format_str = "{}: {:.2f}"
+        format_str = "{}: {:.3f}"
         return "\n".join(format_str.format(param, value) for param, value in self.items())
 
 
@@ -31,9 +31,15 @@ class Path:
     def __init__(self, *args, **kwargs):
         self.points = generate_circle(*args, **kwargs)
         self.growth_distribution = np.full(self.points.shape[0], 0.01)
+        self.growth_mode = 'curve' # Can also be random or sin
+        self.growth_mode_sin_phases = 3.0
 
     def update(self, conf):
         self.grow()
+        # Quick fix to reinitialize the simulation if there are only 20 points or less
+        if len(self.points) < 21:
+            self.points = generate_circle(radius=150, n_points=21)
+            self.growth_distribution = np.full(self.points.shape[0], 0.01)
         attract_forces = attract_to_connected(self.points) * conf.attraction * conf.dt
         repulse_forces = repulse_from_neighbours(self.points)
         repulse_forces *= conf.repulsion * conf.scale * conf.dt
@@ -43,9 +49,12 @@ class Path:
         self.points += all_forces
         self.merge_close_points(conf.min_distance * conf.scale)
         self.split_long_edges(conf.max_distance * conf.scale)
-        #self.growth_distribution = sin_distribution(self, phases=3.0) * conf.growth
-        #self.growth_distribution = np.random.random(self.points.shape[0]) * conf.growth
-        self.growth_distribution = curve_distribution(self) * conf.growth
+        if self.growth_mode == 'curve':
+            self.growth_distribution = curve_distribution(self) * conf.growth
+        elif self.growth_mode == 'random':
+            self.growth_distribution = np.random.random(self.points.shape[0]) * conf.growth
+        else:
+            self.growth_distribution = sin_distribution(self, phases=self.growth_mode_sin_phases) * conf.growth
 
     def grow(self):
         random_variables = np.random.random(len(self.points))
