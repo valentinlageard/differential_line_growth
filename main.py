@@ -180,7 +180,6 @@ class SimulationWindow(pyglet.window.Window):
         else:
             self.color = Color(hue=self.hue, saturation=self.saturation, luminance=self.luminance)
             r, g, b = self.color.rgb
-            print(r, g, b)
             color = (r, g, b, max(0.001, 0.05)) if self.tracing else (r, g, b, 1)
             self.vertex_list.colors = color * len(self.path)
         if self.node_drawing:

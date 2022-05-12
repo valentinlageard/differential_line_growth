@@ -16,7 +16,8 @@ def attract_to_connected(points):
 
 
 def repulse_from_neighbours(points, n_neighbours=20):
-    nearest_neighbors_learner = NearestNeighbors(n_neighbors=n_neighbours)
+    # TODO: Apparently faiss can make us gain time on nearest neighbours search: https://towardsdatascience.com/make-knn-300-times-faster-than-scikit-learns-in-20-lines-5e29d74e76bb
+    nearest_neighbors_learner = NearestNeighbors(n_neighbors=n_neighbours, n_jobs=8)
     nearest_neighbors_learner.fit(points)
     distances, neighbours_idxs = nearest_neighbors_learner.kneighbors(n_neighbors=n_neighbours)
     all_neigbours = points[neighbours_idxs]
