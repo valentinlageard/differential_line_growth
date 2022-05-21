@@ -35,8 +35,14 @@ class SimulationWindow(pyglet.window.Window):
         self.luminance = 1
 
         # Midi
-        self.inport = mido.open_input(select_input_port_name())
-        self.midi_conf = midi_conf
+        if midi_conf['midi']['enabled'] == 'yes':
+            self.midi_interaction = True
+            self.inport = mido.open_input(select_input_port_name())
+            self.midi_conf = midi_conf
+        else:
+            self.midi_interaction = False
+            self.inport = None
+            self.midi_conf = None
 
         # Rendering
         self.line_vertex_list = vertex_list(0, ('v2f', ()), ('c4f', ()))
@@ -62,7 +68,8 @@ class SimulationWindow(pyglet.window.Window):
         self.clear()
 
     def update(self, dt):
-        self._update_midi()
+        if self.midi_interaction:
+            self._update_midi()
         if self.playing:
             self.simulation.update(dt)
             self._update_vertices()
